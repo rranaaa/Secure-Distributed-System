@@ -1,0 +1,110 @@
+services:
+  db:
+    image: postgres:15
+    container_name: secure_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: secure_system
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: secure_rabbitmq
+    restart: always
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  api1:
+    build: ./api
+    container_name: api1
+    restart: always
+    environment:
+      SERVICE_NAME: api1
+      PORT: 3000
+      DB_HOST: db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: secure_system
+      DB_PORT: 5432
+      RABBITMQ_URL: amqp://rabbitmq
+      JWT_SECRET: mysecretkey
+      INTERNAL_SERVICE_TOKEN: internal-secret
+    depends_on:
+      - db
+      - rabbitmq
+
+  api2:
+    build: ./api
+    container_name: api2
+    restart: always
+    environment:
+      SERVICE_NAME: api2
+      PORT: 3000
+      DB_HOST: db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: secure_system
+      DB_PORT: 5432
+      RABBITMQ_URL: amqp://rabbitmq
+      JWT_SECRET: mysecretkey
+      INTERNAL_SERVICE_TOKEN: internal-secret
+    depends_on:
+      - db
+      - rabbitmq
+
+  api3:
+    build: ./api
+    container_name: api3
+    restart: always
+    environment:
+      SERVICE_NAME: api3
+      PORT: 3000
+      DB_HOST: db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: secure_system
+      DB_PORT: 5432
+      RABBITMQ_URL: amqp://rabbitmq
+      JWT_SECRET: mysecretkey
+      INTERNAL_SERVICE_TOKEN: internal-secret
+    depends_on:
+      - db
+      - rabbitmq
+
+  worker:
+    build: ./worker
+    container_name: worker
+    restart: always
+    environment:
+      SERVICE_NAME: worker
+      DB_HOST: db
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: secure_system
+      DB_PORT: 5432
+      RABBITMQ_URL: amqp://rabbitmq
+      INTERNAL_SERVICE_TOKEN: internal-secret
+    depends_on:
+      - db
+      - rabbitmq
+
+  nginx:
+    image: nginx:latest
+    container_name: secure_nginx
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/certs:/etc/nginx/certs
+    depends_on:
+      - api1
+      - api2
+      - api3
