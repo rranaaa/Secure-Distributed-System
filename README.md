@@ -118,18 +118,7 @@ Individual test scripts are in the `scripts/` directory for targeted testing.
 
 ## HTTPS vs HTTP / MITM Testing
 
-- **HTTPS mode** (default): Enable TLS and observe encrypted packets with Wireshark.
-- **HTTP mode** for MITM simulation: Temporarily disable TLS in Nginx to observe plain text traffic.
-
-To switch to HTTP mode for testing:
-
-1. Edit `nginx/nginx.conf` and comment out the SSL-related lines in the `server` block for port 443.
-2. Change the `listen 443 ssl;` to `listen 80;` and remove SSL directives.
-3. Restart Nginx: `docker-compose restart nginx`
-4. Use `http://localhost/task` instead of `https://localhost/task` in tests.
-5. Capture traffic with Wireshark to see exposed JWT tokens and payloads.
-
-Use the self-signed certificate in `nginx/certs/server.crt` and `nginx/certs/server.key`.
+Check the MITM-Testing-guide.md
 
 ## Notes
 
