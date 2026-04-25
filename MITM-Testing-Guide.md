@@ -1,81 +1,194 @@
-# MITM Attack Simulation Testing Guide
+Got it — you want it as a **clean README file**, not just explanations. Here is the **final polished README version** you can paste directly into your repo.
 
-## Prerequisites
-- Wireshark installed (download from https://www.wireshark.org/)
-- System running (docker-compose up --build)
-- JWT token generated (cd api && node generateToken.js)
+---
 
-## Step 1: HTTP Mode Setup
-1. Backup current nginx.conf:
-   ```powershell
-   cp nginx/nginx.conf nginx/nginx.conf.https
-   ```
+# 🔐 MITM Attack Simulation (Wireshark)
 
-2. Edit nginx/nginx.conf to disable SSL:
-   - Comment out these lines:
-     ```
-     # ssl_certificate /etc/nginx/certs/server.crt;
-     # ssl_certificate_key /etc/nginx/certs/server.key;
-     # ssl_protocols TLSv1.2 TLSv1.3;
-     # ssl_prefer_server_ciphers on;
-     # ssl_ciphers HIGH:!aNULL:!MD5;
-     ```
-   - Change `listen 443 ssl;` to `listen 80;`
+## 📌 Objective
 
-3. Restart Nginx:
-   ```powershell
-   docker-compose restart nginx
-   ```
+Demonstrate the difference between **insecure HTTP** and **secure HTTPS** communication by capturing network traffic using Wireshark.
 
-## Step 2: Capture HTTP Traffic with Wireshark
+---
+
+# 🔴 Step 1: HTTP Mode (Insecure)
+
+## ▶️ Run automated script
+
+```powershell
+.\mitm-http-mode.ps1
+```
+
+This script:
+
+* Switches Nginx to HTTP
+* Restarts containers
+* Waits for RabbitMQ
+* Sends a test request
+
+---
+
+## 🧪 Capture HTTP Traffic
+
 1. Open Wireshark
-2. Select your network interface (e.g., "Ethernet" or "Wi-Fi")
-3. Click "Start" to begin capturing packets
-4. In a new terminal, send a test request:
-   ```powershell
-   $token = node .\api\generateToken.js
-   curl -X POST "http://localhost/task" -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d '{"task":"mitm-test"}'
-   ```
-5. Click "Stop" in Wireshark to end capture
-6. In Wireshark, apply filter: `http`
-7. **Demonstrate visibility:**
-   - Expand HTTP packets
-   - Show request headers (including Authorization with JWT token)
-   - Show request payload in plain text: `{"task":"mitm-test"}`
-   - JWT token is fully readable
+2. Select:
 
-## Step 3: HTTPS Mode Setup
-1. Restore HTTPS configuration:
-   ```powershell
-   cp nginx/nginx.conf.https nginx/nginx.conf
+   ```
+   Npcap Loopback Adapter
+   ```
+3. Start capture
+4. Apply filter:
+
+   ```
+   tcp.port == 80
    ```
 
-2. Restart Nginx:
-   ```powershell
-   docker-compose restart nginx
+---
+
+## 🔍 Inspect Packet
+
+* Right-click → **Follow → TCP Stream**
+
+### You will see:
+
+```http
+POST /task HTTP/1.1
+Authorization: Bearer eyJhbGciOiJIUzI1Ni...
+Content-Type: application/json
+
+{"task":"mitm-http-test"}
+```
+
+---
+
+## 📸 Required Screenshots (HTTP)
+
+* Authorization header visible
+* JWT token readable
+* JSON payload readable
+* Full HTTP request
+
+---
+
+## 🧠 Observation
+
+> In HTTP mode, all traffic is transmitted in plaintext. Wireshark clearly shows the JWT token and request payload, making the system vulnerable to Man-in-the-Middle (MITM) attacks.
+
+---
+
+# 🔵 Step 2: HTTPS Mode (Secure)
+
+## ▶️ Run automated script
+
+```powershell
+.\mitm-https-mode.ps1
+```
+
+This script:
+
+* Restores HTTPS configuration
+* Enables TLS encryption
+* Restarts system safely
+
+---
+
+## 🧪 Capture HTTPS Traffic
+
+1. Start a new capture in Wireshark
+2. Use filter:
+
+   ```
+   tls
    ```
 
-## Step 4: Capture HTTPS Traffic with Wireshark
-1. Start a new capture in Wireshark (same interface)
-2. Send HTTPS test request:
-   ```powershell
-   $token = node .\api\generateToken.js
-   curl -k -X POST "https://localhost/task" -H "Authorization: Bearer $token" -H "Content-Type: application/json" -d '{"task":"secure-test"}'
+   or
+
    ```
-3. Stop capture
-4. Apply filter: `tls` or `ssl`
-5. **Demonstrate encryption:**
-   - Packets show TLS handshake
-   - No readable HTTP headers
-   - No visible JWT token
-   - No readable payload - all data is encrypted
+   tcp.port == 443
+   ```
 
-## Key Observations
-- **HTTP Mode**: Vulnerable to MITM - credentials and data exposed
-- **HTTPS Mode**: Secure - traffic encrypted, prevents eavesdropping
+---
 
-## Screenshots to Capture
-1. Wireshark HTTP capture showing plain text JWT token
-2. Wireshark HTTP capture showing readable payload
-3. Wireshark HTTPS capture showing encrypted packets
-4. Before/after comparison of the same request in HTTP vs HTTPS
+## 🔍 Inspect Packet
+
+You will see:
+
+```
+TLSv1.2 / TLSv1.3
+Encrypted Application Data
+```
+
+---
+
+## ❌ What you will NOT see
+
+* No Authorization header
+* No JWT token
+* No JSON payload
+
+---
+
+## 📸 Required Screenshots (HTTPS)
+
+* TLS packets
+* Encrypted Application Data
+* No readable request data
+
+---
+
+## 🧠 Observation
+
+> In HTTPS mode, communication is encrypted using TLS. Wireshark only shows encrypted packets, and sensitive data such as JWT tokens and payloads are not visible, preventing MITM attacks.
+
+---
+
+# ⚠️ Common Issues & Fixes
+
+## ❌ No HTTP packets captured
+
+* Use **Npcap Loopback Adapter**
+* Use filter:
+
+  ```
+  tcp.port == 80
+  ```
+
+---
+
+## ❌ RabbitMQ connection error (ECONNREFUSED)
+
+* Wait for RabbitMQ to start
+* Restart API containers:
+
+  ```powershell
+  docker restart api1 api2 api3
+  ```
+
+---
+
+## ❌ Scripts stop working after HTTP mode
+
+* Restore HTTPS:
+
+  ```powershell
+  .\mitm-https-mode.ps1
+  ```
+
+---
+
+# 📊 Final Comparison
+
+| Feature           | HTTP         | HTTPS    |
+| ----------------- | ------------ | -------- |
+| Headers visible   | ✅ Yes        | ❌ No     |
+| JWT token visible | ✅ Yes        | ❌ No     |
+| Payload readable  | ✅ Yes        | ❌ No     |
+| Encryption        | ❌ None       | ✅ TLS    |
+| Security          | ❌ Vulnerable | ✅ Secure |
+
+---
+
+# 🎯 Conclusion
+
+> HTTP exposes sensitive data such as authentication tokens and request payloads, making it vulnerable to MITM attacks. HTTPS protects communication using TLS encryption, ensuring confidentiality and security.
+
+---
